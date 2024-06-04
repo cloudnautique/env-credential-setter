@@ -1,0 +1,39 @@
+Name: envvar-credential-setter
+Args: user_message: the message to prompt the user with.
+Args: envvar: the envvar to set for this tool.
+
+#!python3
+
+import json
+import subprocess
+import sys
+import os
+
+message = os.getenv("user_message")
+
+tool_input = {
+    "message": message,
+    "fields": "token",
+    "sensitive": "true",
+}
+command = ["gptscript", "--quiet=true", "--disable-cache", "sys.prompt", json.dumps(tool_input)]
+result = subprocess.run(command, stdin=None, stdout=subprocess.PIPE, text=True)
+
+if result.returncode != 0:
+    print("Failed to run sys.prompt.", file=sys.stderr)
+    sys.exit(1)
+
+envvar = os.getenv("envvar")
+
+try:
+    resp = json.loads(result.stdout.strip())
+    token = resp["token"]
+    output = {
+        "env": {
+            envvar: token,
+        }
+    }
+    print(json.dumps(output))
+except json.JSONDecodeError:
+    print("Failed to decode JSON.", file=sys.stderr)
+    sys.exit(1)
